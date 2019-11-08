@@ -1,175 +1,64 @@
-.. _readme:
-
-template-formula
+================
+nftables-formula
 ================
 
-|img_travis| |img_sr|
+A salt formula that installs and configures the nftables services. It currently supports Debian/Ubuntu.
+This project is motivated by the Debian's decision to migrate from iptables to nftables.
+There are some missing functionnalies in the nftables state of saltstack (create/delete table and chain, create set, ...)
+Config file content (where needed) is stored in pillar (see pillar.example).
 
-.. |img_travis| image:: https://travis-ci.com/saltstack-formulas/template-formula.svg?branch=master
-   :alt: Travis CI Build Status
-   :scale: 100%
-   :target: https://travis-ci.com/saltstack-formulas/template-formula
-.. |img_sr| image:: https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--release-e10079.svg
-   :alt: Semantic Release
-   :scale: 100%
-   :target: https://github.com/semantic-release/semantic-release
+nftables
+========
 
-A SaltStack formula that is empty. It has dummy content to help with a quick
-start on a new formula and it serves as a style guide.
+Install and run the nftables service
 
-.. contents:: **Table of Contents**
+.. note
 
-General notes
--------------
-
-See the full `SaltStack Formulas installation and usage instructions
-<https://docs.saltstack.com/en/latest/topics/development/conventions/formulas.html>`_.
-
-If you are interested in writing or contributing to formulas, please pay attention to the `Writing Formula Section
-<https://docs.saltstack.com/en/latest/topics/development/conventions/formulas.html#writing-formulas>`_.
-
-If you want to use this formula, please pay attention to the ``FORMULA`` file and/or ``git tag``,
-which contains the currently released version. This formula is versioned according to `Semantic Versioning <http://semver.org/>`_.
-
-See `Formula Versioning Section <https://docs.saltstack.com/en/latest/topics/development/conventions/formulas.html#versioning>`_ for more details.
-
-If you need (non-default) configuration, please pay attention to the ``pillar.example`` file and/or `Special notes`_ section.
-
-Contributing to this repo
--------------------------
-
-**Commit message formatting is significant!!**
-
-Please see `How to contribute <https://github.com/saltstack-formulas/.github/blob/master/CONTRIBUTING.rst>`_ for more details.
-
-Special notes
--------------
-
-None
+In *Debian* from *Buster* nftables will become the standard, and so the installation process is not needed.
 
 Available states
-----------------
+================
 
 .. contents::
-   :local:
+    :local:
 
-``template``
-^^^^^^^^^^^^
+``nftables.package``
+--------------------
 
-*Meta-state (This is a state that includes other states)*.
+This state will install the nftable package only.
 
-This installs the template package,
-manages the template configuration file and then
-starts the associated template service.
+``nftables.config``
+-------------------
 
-``template.package``
-^^^^^^^^^^^^^^^^^^^^
+This state will configure the service parameters and has a dependency on the `nftables.install` via include list.
 
-This state will install the template package only.
+``nftables.service``
+--------------------
 
-``template.config``
-^^^^^^^^^^^^^^^^^^^
+This state will start the nftables service and has a dependency on `nftables.config` via include list.
 
-This state will configure the template service and has a dependency on ``template.install``
-via include list.
 
-``template.service``
-^^^^^^^^^^^^^^^^^^^^
+``nftables.clean``
+------------------
 
-This state will start the template service and has a dependency on ``template.config``
-via include list.
+This sate will undo everything and clean the service, configuration, installation.
 
-``template.clean``
-^^^^^^^^^^^^^^^^^^
+Sample Pillar
+=============
 
-*Meta-state (This is a state that includes other states)*.
+See the `pillar.example <pillar.example>`_ for a documented pillar file.
 
-this state will undo everything performed in the ``template`` meta-state in reverse order, i.e.
-stops the service,
-removes the configuration file and
-then uninstalls the package.
+Contributions
+=============
 
-``template.service.clean``
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+Contributions are always welcome. The main development guidelines include:
 
-This state will stop the template service and disable it at boot time.
-
-``template.config.clean``
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This state will remove the configuration of the template service and has a
-dependency on ``template.service.clean`` via include list.
-
-``template.package.clean``
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This state will remove the template package and has a depency on
-``template.config.clean`` via include list.
-
-``template.subcomponent``
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-*Meta-state (This is a state that includes other states)*.
-
-This state installs a subcomponent configuration file before
-configuring and starting the template service.
-
-``template.subcomponent.config``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This state will configure the template subcomponent and has a
-dependency on ``template.config`` via include list.
-
-``template.subcomponent.config.clean``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This state will remove the configuration of the template subcomponent
-and reload the template service by a dependency on
-``template.service.running`` via include list and ``watch_in``
-requisite.
+* write clean code
+* set sane default settings
+* test your code
+* update README.rst doc
 
 Testing
--------
+=======
 
-Linux testing is done with ``kitchen-salt``.
-
-Requirements
-^^^^^^^^^^^^
-
-* Ruby
-* Docker
-
-.. code-block:: bash
-
-   $ gem install bundler
-   $ bundle install
-   $ bin/kitchen test [platform]
-
-Where ``[platform]`` is the platform name defined in ``kitchen.yml``,
-e.g. ``debian-9-2019-2-py3``.
-
-``bin/kitchen converge``
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-Creates the docker instance and runs the ``template`` main state, ready for testing.
-
-``bin/kitchen verify``
-^^^^^^^^^^^^^^^^^^^^^^
-
-Runs the ``inspec`` tests on the actual instance.
-
-``bin/kitchen destroy``
-^^^^^^^^^^^^^^^^^^^^^^^
-
-Removes the docker instance.
-
-``bin/kitchen test``
-^^^^^^^^^^^^^^^^^^^^
-
-Runs all of the stages above in one go: i.e. ``destroy`` + ``converge`` + ``verify`` + ``destroy``.
-
-``bin/kitchen login``
-^^^^^^^^^^^^^^^^^^^^^
-
-Gives you SSH access to the instance for manual testing.
-
+Testing on Debian 9/10

@@ -1,0 +1,50 @@
+#!/usr/bin/env nft -f
+
+##
+## MANAGED BY SALT - don't edit manually
+##
+
+#
+# Flush all
+flush ruleset
+
+{%- set configurations = salt.pillar.get('nftables:configuration', [ ]) %}
+
+#
+# Adding tables
+{% for item in configurations|dictsort -%}
+{% for nft_tables in salt.pillar.get("nftables:configuration:"+item[0]+":tables",[ ]) -%}
+add table {% if 'family' in nft_tables %}{{ nft_tables['family'] }}{% else %}ip{% endif %} {{ nft_tables['name'] }}
+{% endfor -%}
+{% endfor %}
+
+#
+# Adding chains
+{% for item in configurations|dictsort -%}
+{% for nft_chains in salt.pillar.get("nftables:configuration:"+item[0]+":chains", [ ]) -%}
+{% if 'table_type' in nft_chains or 'hook' in nft_chains -%}
+add chain {% if 'family' in nft_chains %}{{ nft_chains['family'] }}{% else %}ip{% endif %} {{ nft_chains['table'] }} {{ nft_chains['name'] }} { type {% if 'table_type' in nft_chains %}{{ nft_chains['table_type'] }}{% else %}filter{% endif %} hook {{ nft_chains['hook'] }} priority {% if 'priority' in nft_chains %}{{ nft_chains['priority'] }}{% else %}0{% endif %}; policy {% if 'policy' in nft_chains %}{{ nft_chains['policy'] }}{% else %}accept{% endif %}; }
+{% else -%}
+add chain {% if 'family' in nft_chains %}{{ nft_chains['family'] }}{% else %}ip{% endif %} {{ nft_chains['table'] }} {{ nft_chains['name'] }}
+{% endif -%}
+{% endfor -%}
+{% endfor %}
+
+#
+# Adding sets
+{% for item in configurations|dictsort -%}
+{% for nft_sets in salt.pillar.get("nftables:configuration:"+item[0]+":sets", [ ]) -%}
+add set {% if 'family' in nft_sets %}{{ nft_sets['family'] }}{% else %}ip{% endif %} {{ nft_sets['table'] }} {{ nft_sets['name'] }} { type {{ nft_sets['type'] }};{% if 'flags' in nft_sets %} flags {{ nft_sets['flags']|join(', ') }};{% endif %}{% if 'timeout' in nft_sets %} timeout {{ nft_sets['timeout'] }};{% endif %} }
+{% endfor -%}
+{% for nft_set_elements in salt.pillar.get("nftables:configuration:"+item[0]+":set_elements", [ ]) -%}
+add element {% if 'family' in nft_set_elements %}{{ nft_set_elements['family'] }}{% else %}ip{% endif %} {{ nft_set_elements['table'] }} {{ nft_set_elements['set'] }} { {% for elt in nft_set_elements['elements'] %}{{ elt }}{% if not loop.last %}, {% endif %}{% endfor %} }
+{% endfor -%}
+{% endfor %}
+
+#
+# Adding rules
+{% for item in configurations|dictsort -%}
+{%- for nft_rules in salt.pillar.get("nftables:configuration:"+item[0]+":rules", [ ]) -%}
+add rule {% if 'family' in nft_rules %}{{ nft_rules['family'] }}{% else %}ip{% endif %} {{ nft_rules['table'] }} {{ nft_rules['chain'] }} {{ nft_rules['rule'] }}
+{% endfor -%}
+{% endfor %}

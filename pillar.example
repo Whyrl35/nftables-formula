@@ -1,57 +1,149 @@
 # -*- coding: utf-8 -*-
 # vim: ft=yaml
 ---
-template:
-  lookup:
-    master: template-master
-    # Just for testing purposes
-    winner: lookup
-    added_in_lookup: lookup_value
+nftables:
+  configuration:
+    common:
+      #
+      # create tables filter/nat/raw/mangle
+      tables:
+        - name: 'filter'
+          family: 'inet'
+      #
+      # create chains
+      # for filters : input/forward/output
+      chains:
+        - name: 'input'
+          table: 'filter'
+          family: 'inet'
+          hook: 'input'
+          priority: 0
+          table_type: 'filter'
+          policy: 'drop'
+        - name: 'forward'
+          table: 'filter'
+          family: 'inet'
+          hook: 'forward'
+          policy: 'drop'
+        - name: 'output'
+          table: 'filter'
+          family: 'inet'
+          hook: 'output'
+          policy: 'accept'
+        - name: 'salt'
+          table: 'filter'
+          family: 'inet'
+      #
+      # create sets (like ipset)
+      # myhosts : all the public IP of my hosts
+      # blacklist : used by wazuh to blacklist hosts
+      sets:
+        - name: 'bastion'
+          table: 'filter'
+          family: 'inet'
+          type: ipv4_addr
+        - name: 'bastionv6'
+          table: 'filter'
+          family: 'inet'
+          type: ipv6_addr
+          flags: [ 'interval' ]
+        - name: 'myhosts'
+          table: 'filter'
+          family: 'inet'
+          type: ipv4_addr
+          flags: [ 'interval' ]
+        - name: 'myhostsv6'
+          table: 'filter'
+          family: 'inet'
+          type: ipv6_addr
+          flags: [ 'interval' ]
+        - name: 'blacklist'
+          table: 'filter'
+          family: 'inet'
+          type: ipv4_addr
+          timeout: 1h
+      #
+      # Fill the sets with elements
+      set_elements:
+        - name: 'bastion_elements'
+          table: 'filter'
+          family: 'inet'
+          set: 'bastion'
+          elements:
+            - A.B.C.D      # bastion
+        - name: 'bastionv6_elements'
+          table: 'filter'
+          family: 'inet'
+          set: 'bastionv6'
+          elements:
+            - aaaa:bbb:c:dd::/64    # bastion IPVv6
+        - name: 'myhosts_elements'
+          table: 'filter'
+          family: 'inet'
+          set: 'myhosts'
+          elements:
+            - 10.0.0.0/16
+            - 192.168.0.1/24
+        - name: 'myhostsv6_elements'
+          table: 'filter'
+          family: 'inet'
+          set: 'myhostsv6'
+          elements:
+            - 1:0:1:d::1/128
+      #
+      # create all the default rules
+      # INPUT rules
+      rules:
+        - name: "allow related,established"
+          family: 'inet'
+          table: 'filter'
+          chain: 'input'
+          rule: "ct state related,established accept"
+        - name: "allow loopback traffic"
+          family: 'inet'
+          table: 'filter'
+          chain: 'input'
+          rule: "iif lo accept"
+        - name: "drop invalid traffic"
+          family: 'inet'
+          table: 'filter'
+          chain: 'input'
+          rule: "ct state invalid drop"
+        - name: "allow ICMP traffic"
+          family: 'inet'
+          table: 'filter'
+          chain: 'input'
+          rule: "ip protocol icmp icmp type { destination-unreachable, router-solicitation, router-advertisement, time-exceeded, parameter-problem, echo-request } accept"
+        - name: "allow ICMPv6 traffic"
+          family: 'inet'
+          table: 'filter'
+          chain: 'input'
+          rule: "ip6 nexthdr icmpv6 icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, mld-listener-query, mld-listener-report, mld-listener-reduction, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept"
+        - name: 'Allow ssh from bastion IPv4'
+          table: 'filter'
+          chain: 'input'
+          family: 'inet'
+          rule: 'tcp dport 22 ip saddr @bastion log counter accept'
+        - name: 'Allow ssh from bastion IPv6'
+          table: 'filter'
+          chain: 'input'
+          family: 'inet'
+          rule: 'tcp dport 22 ip6 saddr @bastionv6 log counter accept'
+        - name: 'drop ossec blacklist IPs'
+          table: 'filter'
+          chain: 'input'
+          family: 'inet'
+          rule: 'ip saddr @blacklist counter drop'
+        - name: 'jump to salt chain'
+          table: 'filter'
+          chain: 'input'
+          family: 'inet'
+          rule: 'tcp dport { 4505, 4506 } jump salt'
+        - name: 'salt for my hosts'
+          table: 'filter'
+          chain: 'salt'
+          family: 'inet'
+          rule: 'ip saddr @myhosts counter accept'
 
-  # Using bash package and udev service as an example. This allows us to
-  # test the template formula itself. You should set these parameters to
-  # examples that make sense in the contexto of the formula you're writing.
-  pkg:
-    name: bash
-  service:
-    name: systemd-udevd
-  config: /etc/template-formula.conf
 
-  tofs:
-    # The files_switch key serves as a selector for alternative
-    # directories under the formula files directory. See TOFS pattern
-    # doc for more info.
-    # Note: Any value not evaluated by `config.get` will be used literally.
-    # This can be used to set custom paths, as many levels deep as required.
-    files_switch:
-      - any/path/can/be/used/here
-      - id
-      - roles
-      - osfinger
-      - os
-      - os_family
-    # All aspects of path/file resolution are customisable using the options below.
-    # This is unnecessary in most cases; there are sensible defaults.
-    # Default path: salt://< path_prefix >/< dirs.files >/< dirs.default >
-    #         I.e.: salt://template/files/default
-    # path_prefix: template_alt
-    # dirs:
-    #   files: files_alt
-    #   default: default_alt
-    # The entries under `source_files` are prepended to the default source files
-    # given for the state
-    # source_files:
-    #   template-config-file-file-managed:
-    #     - 'example_alt.tmpl'
-    #     - 'example_alt.tmpl.jinja'
 
-    # For testing purposes
-    source_files:
-      template-config-file-file-managed:
-        - 'example.tmpl.jinja'
-      template-subcomponent-config-file-file-managed:
-        - 'subcomponent-example.tmpl.jinja'
-
-  # Just for testing purposes
-  winner: pillar
-  added_in_pillar: pillar_value

@@ -1,0 +1,9 @@
+# -*- coding: utf-8 -*-
+# vim: ft=yaml
+---
+nftables:
+  package: nftables
+  service:
+    name: nftables
+    enable: true
+  config: /etc/nftables.conf
